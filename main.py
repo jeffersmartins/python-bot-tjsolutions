@@ -116,6 +116,7 @@ def fetch_data(username):
                     cd_revenda
                     cep
                     numero
+                    complementoendereco
                 }}
                 mk_logradouros {{
                     logradouro
@@ -159,6 +160,9 @@ def process_excel_file(file_path):
     # Carregar o arquivo Excel com os dados originais
     logger.info(f"Carregando o arquivo Excel: {file_path}")
     df_original = pd.read_excel(file_path, header=1)
+    
+    # Verifique as colunas carregadas
+    logger.info(f"Colunas do DataFrame original: {df_original.columns.tolist()}")
 
     # Extrair os usernames da coluna 'Usuário'
     usernames = df_original['Usuário'].tolist()
@@ -168,7 +172,7 @@ def process_excel_file(file_path):
 
     for username in usernames:
         data = fetch_data(username)
-        if data:  # Verificar se a resposta não é None
+        if data:
             results.append(data)
 
     # Converter a lista de respostas em um DataFrame do pandas
@@ -176,14 +180,35 @@ def process_excel_file(file_path):
         data_normalized = []
 
         for result in results:
-            # Acessar o caminho correto para os dados
             mk01 = result.get('data', {}).get('mk01', {})
             mk_conexoes = mk01.get('mk_conexoes', [])
             if mk_conexoes:
                 for conexao in mk_conexoes:
                     mk_pessoa = conexao.get('mk_pessoa', {})
-                    if mk_pessoa:
-                        data_normalized.append(mk_pessoa)  # Adicionar dados normalizados
+                    mk_logradouros = conexao.get('mk_logradouros', {})
+                    mk_bairros = mk_logradouros.get('mk_bairros', {})
+                    mk_cidades = mk_bairros.get('mk_cidades', {})
+                    mk_estado = mk_cidades.get('mk_estado', {})
+                    
+                    # Adiciona dados normalizados
+                    data_normalized.append({
+                        'codpessoa': mk_pessoa.get('codpessoa'),
+                        'nome_razaosocial': mk_pessoa.get('nome_razaosocial'),
+                        'cpf': mk_pessoa.get('cpf'),
+                        'email': mk_pessoa.get('email'),
+                        'fone01': mk_pessoa.get('fone01'),
+                        'fone02': mk_pessoa.get('fone02'),
+                        'cep': mk_pessoa.get('cep'),
+                        'numero': mk_pessoa.get('numero'),
+                        'complementoendereco': mk_pessoa.get('complementoendereco'),  # Adicionado
+                        'logradouro': mk_logradouros.get('logradouro'),
+                        'bairro': mk_bairros.get('bairro'),
+                        'cidade': mk_cidades.get('cidade'),
+                        'estado': mk_estado.get('siglaestado')
+                    })
+
+        # Verifique o conteúdo dos dados normalizados
+        logger.info(f"Dados normalizados:\n{data_normalized}")
 
         # Verificar se data_normalized contém dados
         if data_normalized:
