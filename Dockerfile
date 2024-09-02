@@ -20,7 +20,7 @@ RUN useradd -ms /bin/bash playwrightuser
 WORKDIR /home/playwrightuser/app
 
 # Copie o arquivo .env e o script para o contêiner
-COPY --chown=playwrightuser:playwrightuser .env main.py /home/playwrightuser/app/
+COPY --chown=playwrightuser:playwrightuser .env_example main.py /home/playwrightuser/app/
 
 # Defina as permissões adequadas para o diretório de trabalho
 RUN chmod -R 755 /home/playwrightuser/app
