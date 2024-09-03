@@ -1,20 +1,24 @@
+import os
+import json
+import logging
+import requests
+import pandas as pd
+
+from playwright.sync_api import sync_playwright
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-import os
 from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright
-import logging
-import pandas as pd
-import requests
-import json
+
 
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
 
+
 # Configuração de logs
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 
 app = FastAPI(
     title="Automation API",
@@ -22,10 +26,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
 class QueryParams(BaseModel):
     date: str = Field(..., example="2024-06-24", description="Data da consulta no formato YYYY-MM-DD")
     time: str = Field(..., example="13:34:17", description="Hora da consulta no formato HH:MM:SS")
     ipv6: str = Field(..., example="2804:145c:86f7:fc00::/56", description="Endereço IPv6 para a consulta")
+
 
 def run_playwright_script(date: str, time: str, ipv6: str):
     """
@@ -70,18 +76,18 @@ def run_playwright_script(date: str, time: str, ipv6: str):
             page.wait_for_timeout(1000)
 
             # Clica no botão "Localizar Registro" e espera a resposta
-            with page.expect_response("https://tjsolutions.com.br/painel/ncsyslog_v6/consultar", timeout=200000) as response_info:
+            with page.expect_response("https://tjsolutions.com.br/painel/ncsyslog_v6/consultar", timeout=2000000) as response_info:
                 page.get_by_role("button", name="Localizar Registro").click()
                 page.wait_for_load_state("networkidle", timeout=10000)
             response = response_info.value
             print(response)
-            page.wait_for_timeout(10000)
+            page.wait_for_timeout(5000)
 
             # Espera o botão " Excel" aparecer após a consulta
             with page.expect_download() as download3_info:
                 page.get_by_role("button", name=" Excel").click()
             download = download3_info.value
-            page.wait_for_timeout(10000)
+            page.wait_for_timeout(5000)
 
             # Salvar o arquivo Excel na raiz da pasta do script
             current_directory = os.getcwd()
@@ -97,6 +103,7 @@ def run_playwright_script(date: str, time: str, ipv6: str):
         logger.error(f"Erro ao executar o script Playwright: {str(e)}")
         return {"error": str(e)}
 
+
 def fetch_data(username):
     """
     Faz uma requisição GraphQL para buscar dados de um usuário específico.
@@ -106,6 +113,7 @@ def fetch_data(username):
     query MyQuery {{
         mk01 {{
             mk_conexoes(where: {{username: {{_eq: "{username}"}}}}) {{
+                username
                 mk_pessoa {{
                     codpessoa
                     nome_razaosocial
@@ -145,11 +153,12 @@ def fetch_data(username):
 
     if response.status_code == 200:
         logger.info(f"Dados recebidos para {username}")
-        return response.json()  # Retornar o JSON recebido
+        return response.json()
     else:
         logger.error(f"Falha na requisição para {username}. Status code: {response.status_code}")
         logger.error(f"Erro: {response.text}")
         return None
+
 
 def process_excel_file(file_path):
     """
@@ -164,68 +173,51 @@ def process_excel_file(file_path):
     # Verifique as colunas carregadas
     logger.info(f"Colunas do DataFrame original: {df_original.columns.tolist()}")
 
-    # Extrair os usernames da coluna 'Usuário'
-    usernames = df_original['Usuário'].tolist()
-
     # Fazer a requisição POST para cada username e armazenar os resultados
-    results = []
-
-    for username in usernames:
-        data = fetch_data(username)
+    for index, row in df_original.iterrows():
+        user = row['Usuário']
+        data = fetch_data(user)
+        
         if data:
-            results.append(data)
+            # Obter a lista de conexões
+            mk_conexoes = data.get('data', {}).get('mk01', {}).get('mk_conexoes', [])
+            
+            # Encontrar a conexão correspondente ao usuário atual
+            for connection_info in mk_conexoes:
+                username = connection_info.get('username')
+                
+                if username == user:
+                    # Extraia as informações relevantes dos dados retornados
+                    pessoa_info = connection_info.get('mk_pessoa', {})
+                    logradouro_info = connection_info.get('mk_logradouros', {})
+                    bairro_info = logradouro_info.get('mk_bairros', {})
+                    cidade_info = bairro_info.get('mk_cidades', {})
+                    estado_info = cidade_info.get('mk_estado', {})
 
-    # Converter a lista de respostas em um DataFrame do pandas
-    if results:
-        data_normalized = []
+                    # Adicione os dados ao DataFrame original
+                    df_original.at[index, 'Nome'] = pessoa_info.get('nome_razaosocial')
+                    df_original.at[index, 'CPF'] = pessoa_info.get('cpf')
+                    df_original.at[index, 'Email'] = pessoa_info.get('email')
+                    df_original.at[index, 'Telefone 1'] = pessoa_info.get('fone01')
+                    df_original.at[index, 'Telefone 2'] = pessoa_info.get('fone02')
+                    df_original.at[index, 'CEP'] = pessoa_info.get('cep')
+                    df_original.at[index, 'Número'] = pessoa_info.get('numero')
+                    df_original.at[index, 'Complemento'] = pessoa_info.get('complementoendereco')
+                    df_original.at[index, 'Logradouro'] = logradouro_info.get('logradouro')
+                    df_original.at[index, 'Bairro'] = bairro_info.get('bairro')
+                    df_original.at[index, 'Cidade'] = cidade_info.get('cidade')
+                    df_original.at[index, 'Estado'] = estado_info.get('siglaestado')
+                    break  # Saia do loop após encontrar a correspondência
 
-        for result in results:
-            mk01 = result.get('data', {}).get('mk01', {})
-            mk_conexoes = mk01.get('mk_conexoes', [])
-            if mk_conexoes:
-                for conexao in mk_conexoes:
-                    mk_pessoa = conexao.get('mk_pessoa', {})
-                    mk_logradouros = conexao.get('mk_logradouros', {})
-                    mk_bairros = mk_logradouros.get('mk_bairros', {})
-                    mk_cidades = mk_bairros.get('mk_cidades', {})
-                    mk_estado = mk_cidades.get('mk_estado', {})
-                    
-                    # Adiciona dados normalizados
-                    data_normalized.append({
-                        'codpessoa': mk_pessoa.get('codpessoa'),
-                        'nome_razaosocial': mk_pessoa.get('nome_razaosocial'),
-                        'cpf': mk_pessoa.get('cpf'),
-                        'email': mk_pessoa.get('email'),
-                        'fone01': mk_pessoa.get('fone01'),
-                        'fone02': mk_pessoa.get('fone02'),
-                        'cep': mk_pessoa.get('cep'),
-                        'numero': mk_pessoa.get('numero'),
-                        'complementoendereco': mk_pessoa.get('complementoendereco'),  # Adicionado
-                        'logradouro': mk_logradouros.get('logradouro'),
-                        'bairro': mk_bairros.get('bairro'),
-                        'cidade': mk_cidades.get('cidade'),
-                        'estado': mk_estado.get('siglaestado')
-                    })
+    # Salvar o DataFrame atualizado em um novo arquivo Excel
+    output_file_path = file_path.replace('.xlsx', '_processed.xlsx')
+    df_original.to_excel(output_file_path, index=False)
+    logger.info(f"Arquivo Excel processado salvo em: {output_file_path}")
+    
+    return output_file_path
 
-        # Verifique o conteúdo dos dados normalizados
-        logger.info(f"Dados normalizados:\n{data_normalized}")
 
-        # Verificar se data_normalized contém dados
-        if data_normalized:
-            # Converter a lista de dicionários em um DataFrame
-            df_convert = pd.DataFrame(data_normalized)
-
-            # Salvar o DataFrame em um arquivo Excel
-            output_file = "resposta_relatorio.xlsx"
-            df_convert.to_excel(output_file, index=False)
-            logger.info(f"Dados salvos em {output_file}")
-            return output_file
-        else:
-            logger.warning("Nenhum dado normalizado foi encontrado.")
-    else:
-        logger.warning("Nenhum dado foi retornado.")
-
-@app.post("/consultar", summary="Consulta no sistema", response_description="Resultado da consulta")
+@app.post("/consultar-ipv6", summary="Consulta no sistema", response_description="Resultado da consulta")
 def consultar(params: QueryParams):
     """
     Executa uma consulta no sistema utilizando Playwright e retorna o resultado.
@@ -239,7 +231,8 @@ def consultar(params: QueryParams):
         raise HTTPException(status_code=400, detail=retorno["error"])
     return retorno
 
-@app.get("/processar", summary="Processa o arquivo Excel gerado e retorna o resultado processado", response_description="Arquivo de resposta gerado")
+
+@app.get("/processar-ipv6", summary="Processa o arquivo Excel gerado e retorna o resultado processado", response_description="Arquivo de resposta gerado")
 def processar():
     """
     Processa o arquivo Excel gerado pela consulta e retorna o arquivo processado.
@@ -253,7 +246,7 @@ def processar():
         
         if output_file_path:
             # Retornar o arquivo de resposta gerado
-            return FileResponse(path=output_file_path, filename="resposta_relatorio.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            return FileResponse(path=output_file_path, filename="resultado_processed.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
             raise HTTPException(status_code=404, detail="Erro ao processar o arquivo ou nenhum dado foi encontrado.")
     except Exception as e:
