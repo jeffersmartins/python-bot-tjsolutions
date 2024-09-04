@@ -78,9 +78,9 @@ def run_playwright_script(date: str, time: str, ipv6: str):
             # Clica no botão "Localizar Registro" e espera a resposta
             with page.expect_response("https://tjsolutions.com.br/painel/ncsyslog_v6/consultar", timeout=2000000) as response_info:
                 page.get_by_role("button", name="Localizar Registro").click()
-                page.wait_for_load_state("networkidle", timeout=10000)
+                page.wait_for_load_state("networkidle", timeout=2000000)
             response = response_info.value
-            print(response)
+            logger.info(f"Response: {response.text()}")
             page.wait_for_timeout(5000)
 
             # Espera o botão " Excel" aparecer após a consulta
@@ -213,7 +213,6 @@ def process_excel_file(file_path):
     output_file_path = file_path.replace('.xlsx', '_processed.xlsx')
     df_original.to_excel(output_file_path, index=False)
     logger.info(f"Arquivo Excel processado salvo em: {output_file_path}")
-    
     return output_file_path
 
 
