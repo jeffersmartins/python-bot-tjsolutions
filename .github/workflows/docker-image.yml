@@ -30,8 +30,8 @@ jobs:
       with:
         push: true
         tags: |
-          jeffersondevelopers/python-flask-playwright-tjsolutions:latest
-          jeffersondevelopers/python-flask-playwright-tjsolutions:${{ github.sha }}
+          jeffersondevelopers/python-django-playwright-tjsolutions:latest
+          jeffersondevelopers/python-django-playwright-tjsolutions:${{ github.sha }}
 
     - name: Image digest
       run: echo ${{ steps.docker_build.outputs.digest }}

@@ -3,27 +3,30 @@ FROM mcr.microsoft.com/playwright/python:v1.46.0-jammy
 
 # Atualize a lista de pacotes e instale o pip
 USER root
-RUN apt-get update && apt-get install -y python3-pip
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Instale as dependências do sistema e o FastAPI
+# Instale o Django e outras dependências
 RUN pip install --upgrade pip \
-    && pip install fastapi[all] pandas requests python-dotenv uvicorn openpyxl
-
-# Instale o Playwright e os navegadores
-RUN pip install playwright \
-    && playwright install
+    && pip install django djangorestframework psycopg2-binary pandas openpyxl python-dotenv
 
 # Crie um usuário não root e defina como o usuário atual
-RUN useradd -ms /bin/bash playwrightuser
+RUN useradd -ms /bin/bash djangouser
 
 # Defina o diretório de trabalho
-WORKDIR /home/playwrightuser/app
+WORKDIR /home/djangouser/app
 
-# Copie o arquivo .env e o script para o contêiner
-COPY --chown=playwrightuser:playwrightuser main.py /home/playwrightuser/app/
+# Copie o arquivo requirements.txt e o projeto para o contêiner
+COPY --chown=djangouser:djangouser requirements.txt /home/djangouser/app/
+COPY --chown=djangouser:djangouser . /home/djangouser/app/
+
+# Instale as dependências do projeto
+RUN pip install -r requirements.txt
 
 # Defina as permissões adequadas para o diretório de trabalho
-RUN chmod -R 755 /home/playwrightuser/app
+RUN chmod -R 755 /home/djangouser/app
 
 # Defina a variável de ambiente para a porta que a aplicação irá rodar
 ENV PORT=8000
@@ -31,5 +34,5 @@ ENV PORT=8000
 # Exponha a porta que a aplicação irá rodar
 EXPOSE 8000
 
-# Comando para rodar a aplicação
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Comando para rodar as migrações e iniciar o servidor Django
+CMD ["sh", "-c", "python python_bot_tjsolutions/manage.py migrate && python python_bot_tjsolutions/manage.py runserver 0.0.0.0:8000"]
