@@ -28,11 +28,7 @@ def run_playwright_script(date: str, time: str, ipv6: str):
     Executa o script do Playwright para realizar a automação de consulta.
     """
     try:
-        with sync_playwright() as playwright:
-            logger.info(f"Date: {date}")
-            logger.info(f"Time: {time}")
-            logger.info(f"IPv6: {ipv6}")
-            
+        with sync_playwright() as playwright:           
             browser = playwright.chromium.launch(headless=True)
             context = browser.new_context()
             page = context.new_page()
@@ -209,9 +205,6 @@ def process_excel_file(file_path):
                     df_original.at[index, 'Bairro'] = bairro_info.get('bairro', '')
                     df_original.at[index, 'Cidade'] = cidade_info.get('cidade', '')
                     df_original.at[index, 'Estado'] = estado_info.get('siglaestado', '')
-                    
-                    logger.info(f"Linha atualizada no DataFrame: {df_original.at[index]}")
-
                     break  # Saia do loop após encontrar a correspondência
                 else:
                     logger.warning(f"Username não encontrado na resposta da API para {user}")
