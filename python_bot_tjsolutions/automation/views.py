@@ -4,33 +4,23 @@ import logging
 import requests
 import pandas as pd
 
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 from playwright.sync_api import sync_playwright
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from django.http import FileResponse
+from rest_framework.exceptions import APIException
+from .serializers import QueryParamsSerializer
 
-
-# Carregar variáveis de ambiente do arquivo .env
+# Carregar variáveis de ambiente
 load_dotenv()
-
 
 # Configuração de logs
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
-
-app = FastAPI(
-    title="Automation API",
-    description="API para automatizar a consulta em um sistema usando Playwright.",
-    version="1.0.0"
-)
-
-
-class QueryParams(BaseModel):
-    date: str = Field(..., example="2024-06-24", description="Data da consulta no formato YYYY-MM-DD")
-    time: str = Field(..., example="13:34:17", description="Hora da consulta no formato HH:MM:SS")
-    ipv6: str = Field(..., example="2804:145c:86f7:fc00::/56", description="Endereço IPv6 para a consulta")
 
 
 def run_playwright_script(date: str, time: str, ipv6: str):
@@ -39,6 +29,10 @@ def run_playwright_script(date: str, time: str, ipv6: str):
     """
     try:
         with sync_playwright() as playwright:
+            logger.info(f"Date: {date}")
+            logger.info(f"Time: {time}")
+            logger.info(f"IPv6: {ipv6}")
+            
             browser = playwright.chromium.launch(headless=True)
             context = browser.new_context()
             page = context.new_page()
@@ -152,7 +146,7 @@ def fetch_data(username):
     response = requests.post(url, headers=headers, data=json.dumps(data))
 
     if response.status_code == 200:
-        logger.info(f"Dados recebidos para {username}")
+        logger.info(response.json())
         return response.json()
     else:
         logger.error(f"Falha na requisição para {username}. Status code: {response.status_code}")
@@ -170,8 +164,12 @@ def process_excel_file(file_path):
     logger.info(f"Carregando o arquivo Excel: {file_path}")
     df_original = pd.read_excel(file_path, header=1)
     
-    # Verifique as colunas carregadas
-    logger.info(f"Colunas do DataFrame original: {df_original.columns.tolist()}")
+    # Adicionar as novas colunas antes de iniciar o processamento
+    novas_colunas = ['Nome', 'CPF', 'Email', 'Telefone 1', 'Telefone 2', 'CEP', 'Número', 'Complemento', 'Logradouro', 'Bairro', 'Cidade', 'Estado']
+    for coluna in novas_colunas:
+        df_original[coluna] = ''
+
+    logger.info(f"Colunas após adição das novas colunas: {df_original.columns.tolist()}")
 
     # Fazer a requisição POST para cada username e armazenar os resultados
     for index, row in df_original.iterrows():
@@ -181,6 +179,7 @@ def process_excel_file(file_path):
         if data:
             # Obter a lista de conexões
             mk_conexoes = data.get('data', {}).get('mk01', {}).get('mk_conexoes', [])
+            logger.info(mk_conexoes)
             
             # Encontrar a conexão correspondente ao usuário atual
             for connection_info in mk_conexoes:
@@ -193,61 +192,104 @@ def process_excel_file(file_path):
                     bairro_info = logradouro_info.get('mk_bairros', {})
                     cidade_info = bairro_info.get('mk_cidades', {})
                     estado_info = cidade_info.get('mk_estado', {})
+                    
+                    # Verificar se os dados estão sendo retornados corretamente
+                    logger.info(f"Dados extraídos para {user}: {pessoa_info}")
 
                     # Adicione os dados ao DataFrame original
-                    df_original.at[index, 'Nome'] = pessoa_info.get('nome_razaosocial')
-                    df_original.at[index, 'CPF'] = pessoa_info.get('cpf')
-                    df_original.at[index, 'Email'] = pessoa_info.get('email')
-                    df_original.at[index, 'Telefone 1'] = pessoa_info.get('fone01')
-                    df_original.at[index, 'Telefone 2'] = pessoa_info.get('fone02')
-                    df_original.at[index, 'CEP'] = pessoa_info.get('cep')
-                    df_original.at[index, 'Número'] = pessoa_info.get('numero')
-                    df_original.at[index, 'Complemento'] = pessoa_info.get('complementoendereco')
-                    df_original.at[index, 'Logradouro'] = logradouro_info.get('logradouro')
-                    df_original.at[index, 'Bairro'] = bairro_info.get('bairro')
-                    df_original.at[index, 'Cidade'] = cidade_info.get('cidade')
-                    df_original.at[index, 'Estado'] = estado_info.get('siglaestado')
-                    break  # Saia do loop após encontrar a correspondência
+                    df_original.at[index, 'Nome'] = pessoa_info.get('nome_razaosocial', '')
+                    df_original.at[index, 'CPF'] = pessoa_info.get('cpf', '')
+                    df_original.at[index, 'Email'] = pessoa_info.get('email', '')
+                    df_original.at[index, 'Telefone 1'] = pessoa_info.get('fone01', '')
+                    df_original.at[index, 'Telefone 2'] = pessoa_info.get('fone02', '')
+                    df_original.at[index, 'CEP'] = pessoa_info.get('cep', '')
+                    df_original.at[index, 'Número'] = pessoa_info.get('numero', '')
+                    df_original.at[index, 'Complemento'] = pessoa_info.get('complementoendereco', '')
+                    df_original.at[index, 'Logradouro'] = logradouro_info.get('logradouro', '')
+                    df_original.at[index, 'Bairro'] = bairro_info.get('bairro', '')
+                    df_original.at[index, 'Cidade'] = cidade_info.get('cidade', '')
+                    df_original.at[index, 'Estado'] = estado_info.get('siglaestado', '')
+                    
+                    logger.info(f"Linha atualizada no DataFrame: {df_original.at[index]}")
 
-    # Salvar o DataFrame atualizado em um novo arquivo Excel
-    output_file_path = file_path.replace('.xlsx', '_processed.xlsx')
-    df_original.to_excel(output_file_path, index=False)
-    logger.info(f"Arquivo Excel processado salvo em: {output_file_path}")
+                    break  # Saia do loop após encontrar a correspondência
+                else:
+                    logger.warning(f"Username não encontrado na resposta da API para {user}")
+        else:
+            logger.warning(f"Nenhum dado retornado da API para {user}")
+
+    # Verificar se a coluna foi adicionada
+    logger.info(f"Colunas após processamento: {df_original.head()}")
+    
+    # Salvar o arquivo
+    try:
+        output_file_path = file_path.replace('.xlsx', '_processed.xlsx')
+        df_original.to_excel(output_file_path, index=False)
+        logger.info(f"Arquivo Excel processado salvo em: {output_file_path}")
+    except Exception as e:
+        logger.error(f"Erro ao salvar o arquivo: {e}")
+        raise
+    
     return output_file_path
 
 
-@app.post("/consultar-ipv6", summary="Consulta no sistema", response_description="Resultado da consulta")
-def consultar(params: QueryParams):
-    """
-    Executa uma consulta no sistema utilizando Playwright e retorna o resultado.
+class ConsultarIpv6(APIView):
+    @swagger_auto_schema(
+        request_body=QueryParamsSerializer,
+        responses={
+            200: openapi.Response(
+                description="Resposta do script Playwright",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'result': openapi.Schema(type=openapi.TYPE_STRING, description='Resultado'),
+                    }
+                ),
+            ),
+            400: openapi.Response(
+                description="Erro na requisição",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'detail': openapi.Schema(type=openapi.TYPE_STRING, description='Detalhes do erro'),
+                    }
+                ),
+            ),
+        },
+    )
+    def post(self, request):
+        serializer = QueryParamsSerializer(data=request.data)
+        if serializer.is_valid():
+            date = serializer.validated_data.get("date")
+            time = serializer.validated_data.get("time")
+            ipv6 = serializer.validated_data.get("ipv6")
 
-    - **date**: Data da consulta (formato YYYY-MM-DD)
-    - **time**: Hora da consulta (formato HH:MM:SS)
-    - **ipv6**: Endereço IPv6 para consulta
-    """
-    retorno = run_playwright_script(params.date, params.time, params.ipv6)
-    if "error" in retorno:
-        raise HTTPException(status_code=400, detail=retorno["error"])
-    return retorno
+            logger.info(f"Date: {date}")
+            logger.info(f"Time: {time}")
+            logger.info(f"IPv6: {ipv6}")
 
-
-@app.get("/processar-ipv6", summary="Processa o arquivo Excel gerado e retorna o resultado processado", response_description="Arquivo de resposta gerado")
-def processar():
-    """
-    Processa o arquivo Excel gerado pela consulta e retorna o arquivo processado.
-    """
-    try:
-        # Defina o caminho para o arquivo Excel gerado pela automação com Playwright
-        excel_file_path = "resultado.xlsx"
-        
-        # Processar o arquivo Excel e obter o caminho do arquivo de resposta gerado
-        output_file_path = process_excel_file(excel_file_path)
-        
-        if output_file_path:
-            # Retornar o arquivo de resposta gerado
-            return FileResponse(path=output_file_path, filename="resultado_processed.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            retorno = run_playwright_script(date, time, ipv6)
+            if "error" in retorno:
+                return Response({"detail": retorno["error"]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(retorno)
         else:
-            raise HTTPException(status_code=404, detail="Erro ao processar o arquivo ou nenhum dado foi encontrado.")
-    except Exception as e:
-        logger.error(f"Erro ao processar o arquivo: {str(e)}")
-        raise HTTPException(status_code=500, detail="Erro interno ao processar o arquivo.")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProcessarAPIView(APIView):
+    def get(self, request):
+        try:
+            file_path = "resultado.xlsx"
+            output_file_path = process_excel_file(file_path)
+            
+            if os.path.exists(output_file_path):  # Verificar se o arquivo foi gerado
+                response = FileResponse(open(output_file_path, 'rb'), as_attachment=True, filename="resultado_processed.xlsx")
+                return response
+            else:
+                raise APIException("Erro ao processar o arquivo ou nenhum dado foi encontrado.")
+        except FileNotFoundError:
+            logger.error(f"Arquivo não encontrado: {output_file_path}")
+            raise APIException("Arquivo processado não foi encontrado.")
+        except Exception as e:
+            logger.error(f"Erro ao processar o arquivo: {str(e)}")
+            raise APIException("Erro interno ao processar o arquivo.")
