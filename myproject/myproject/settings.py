@@ -33,13 +33,31 @@ ALLOWED_HOSTS = [
     'playwrightlogs.online.dev.br'
 ]
 
-CORS_ORIGIN_WHITELIST = [
-    'https://playwrightlogs.online.dev.br',
-]
-# Application definition
-
 CORS_ALLOWED_ORIGINS = [
     "https://playwrightlogs.online.dev.br"
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
 ]
 
 INSTALLED_APPS = [
@@ -129,7 +147,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br'
 
 TIME_ZONE = 'UTC'
 
