@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from playwright.sync_api import sync_playwright
 from django.http import FileResponse
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import ensure_csrf_cookie 
 from .serializers import HelloWorldSerializer, ConsultarIpv6Serializer
 
 import os
@@ -29,6 +31,7 @@ def hello_world(request):
     return Response(serializer.errors, status=400)
 
 
+@csrf_protect
 @swagger_auto_schema(method='post', request_body=ConsultarIpv6Serializer)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -52,6 +55,7 @@ def consultar_ipv6(request):
         return Response(serializer.errors, status=400)
 
 
+@csrf_protect
 @swagger_auto_schema(method='get')
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
