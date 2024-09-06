@@ -26,15 +26,21 @@ SECRET_KEY = 'django-insecure-6mq44rj12&ipxzq190nh+!c12fb+_rh(roa+3v5okkc*@cso^^
 DEBUG = True
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://playwrightlogs.online.dev.br'
+    'https://playwrightlogs.online.dev.br',
+    'http://localhost',
+    'https://localhost'
 ]
 
 ALLOWED_HOSTS = [
-    'playwrightlogs.online.dev.br'
+    'playwrightlogs.online.dev.br',
+    'localhost',
+    '127.0.0.1'
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "https://playwrightlogs.online.dev.br"
+    "https://playwrightlogs.online.dev.br",
+    "http://localhost",
+    "https://localhost"
 ]
 
 CORS_ALLOW_CREDENTIALS = True

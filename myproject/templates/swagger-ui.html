@@ -1,0 +1,42 @@
+{% extends "drf_yasg/swagger-ui.html" %}
+
+{% block extra_scripts %}
+<script>
+    // Função para obter o token CSRF dos cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Adicionar o token CSRF a todas as requisições do Swagger
+    window.onload = function() {
+        const csrftoken = getCookie('csrftoken');
+        if (csrftoken) {
+            const ui = window.ui;
+
+            // Intercepta as requisições para adicionar o cabeçalho CSRF
+            ui.plugins.RequestSnippetsGenerator = function() {
+                return {
+                    wrapComponents: {
+                        requestSnippets: () => (Original, system) => (props) => {
+                            const req = props.request;
+                            req.headers['X-CSRFToken'] = csrftoken;
+                            return <Original {...props} />;
+                        }
+                    }
+                };
+            };
+        }
+    };
+</script>
+{% endblock %}
