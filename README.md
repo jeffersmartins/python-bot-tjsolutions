@@ -1,19 +1,20 @@
-# Minha Aplicação Playwright com FastAPI
+# Hello World API
 
-Esta aplicação é uma API construída com FastAPI que utiliza o Playwright para automação de navegação web e raspagem de dados. A aplicação é containerizada com Docker para facilitar a execução e a distribuição.
+## Descrição
 
-## Requisitos
+Esta é uma API para dizer "Olá Mundo" desenvolvida com Django e Django REST Framework. Inclui documentação interativa gerada pelo Swagger para facilitar a exploração e testes da API.
 
-- Python 3.10 ou superior
-- Docker
-- Docker Compose (opcional, se você quiser rodar com Compose)
+## Tecnologias Utilizadas
 
-## Configuração
+- Django
+- Django REST Framework (DRF)
+- Django REST Framework YASG (Swagger)
+- Python-dotenv para gerenciamento de variáveis de ambiente
 
-### 1. Clonar o Repositório
+## Configuração do Ambiente
 
-Clone o repositório para sua máquina local:
+1. **Clone o Repositório**
 
-```bash
-git clone https://github.com/seu-usuario/minha-aplicacao-playwright.git
-cd minha-aplicacao-playwright
+   ```bash
+   git clone https://github.com/usuario/repo.git
+   cd repo
