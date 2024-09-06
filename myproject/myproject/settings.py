@@ -80,6 +80,8 @@ SWAGGER_SETTINGS = {
             'type': 'basic'
         }
     },
+    'DEFAULT_API_URL': 'https://playwrightlogs.online.dev.br/api/',
+    'SUPPORTED_SUBMIT_METHODS': ['get', 'post', 'put', 'delete', 'patch'],
 }
 
 MIDDLEWARE = [
