@@ -27,7 +27,17 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['playwrightlogs.online.dev.br']
 
+CSRF_TRUSTED_ORIGINS = [
+    'playwrightlogs.online.dev.br'
+]
 
+ALLOWED_HOSTS = [
+    'playwrightlogs.online.dev.br',
+]
+
+CORS_ORIGIN_WHITELIST = [
+    'playwrightlogs.online.dev.br',
+]
 # Application definition
 
 INSTALLED_APPS = [
