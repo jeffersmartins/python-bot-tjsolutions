@@ -19,7 +19,7 @@ schema_view = get_schema_view(
    public=True,
    permission_classes=(permissions.AllowAny,),
    # # Use o URL local para testes, e ajuste conforme necessário
-   # url='http://localhost:8000/api/'
+#    url='http://localhost:8000/api/'
    url='https://playwrightlogs.online.dev.br/api/'
 )
 

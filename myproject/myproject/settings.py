@@ -27,6 +27,7 @@ DEBUG = True
 
 CSRF_TRUSTED_ORIGINS = [
     'https://playwrightlogs.online.dev.br',
+    'http://playwrightlogs.online.dev.br',
     'http://localhost',
     'https://localhost'
 ]
@@ -39,6 +40,7 @@ ALLOWED_HOSTS = [
 
 CORS_ALLOWED_ORIGINS = [
     "https://playwrightlogs.online.dev.br",
+    "http://playwrightlogs.online.dev.br",
     "http://localhost",
     "https://localhost"
 ]
