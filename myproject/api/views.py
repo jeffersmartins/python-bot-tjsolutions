@@ -1,27 +1,75 @@
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import APIException
+from rest_framework.response import Response
+from drf_yasg.utils import swagger_auto_schema
+from playwright.sync_api import sync_playwright
+from django.http import FileResponse
+from .serializers import HelloWorldSerializer, ConsultarIpv6Serializer
+
 import os
 import json
 import logging
 import requests
 import pandas as pd
 
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from playwright.sync_api import sync_playwright
-from dotenv import load_dotenv
-from django.http import FileResponse
-from rest_framework.exceptions import APIException
-from .serializers import QueryParamsSerializer
-
-# Carregar variáveis de ambiente
-load_dotenv()
-
 # Configuração de logs
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+@swagger_auto_schema(method='post', request_body=HelloWorldSerializer)
+@api_view(['POST'])
+def hello_world(request):
+    serializer = HelloWorldSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        nome = serializer.validated_data.get('nome')
+        return Response({'message': f'O {nome} é muito gay!'})
+    
+    return Response(serializer.errors, status=400)
+
+
+@swagger_auto_schema(method='post', request_body=ConsultarIpv6Serializer)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def consultar_ipv6(request):
+    serializer = ConsultarIpv6Serializer(data=request.data)
+    
+    if serializer.is_valid():
+        date = serializer.validated_data.get("date")
+        time = serializer.validated_data.get("time")
+        ipv6 = serializer.validated_data.get("ipv6")
+
+        logger.info(f"Date: {date}")
+        logger.info(f"Time: {time}")
+        logger.info(f"IPv6: {ipv6}")
+
+        retorno = run_playwright_script(date, time, ipv6)
+        if "error" in retorno:
+            return Response({"detail": retorno["error"]}, status=400)
+        return Response(retorno)
+    else:
+        return Response(serializer.errors, status=400)
+
+
+@swagger_auto_schema(method='get')
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def relatorio_ipv6(request):
+    try:
+        file_path = "resultado.xlsx"
+        output_file_path = process_excel_file(file_path)
+        
+        if os.path.exists(output_file_path):  # Verificar se o arquivo foi gerado
+            response = FileResponse(open(output_file_path, 'rb'), as_attachment=True, filename="resultado_processed.xlsx")
+            return response
+        else:
+            raise APIException("Erro ao processar o arquivo ou nenhum dado foi encontrado.")
+    
+    except Exception:  # Captura qualquer exceção
+        logger.error("Erro ao processar o arquivo")
+        raise APIException("Erro ao processar arquivo")
+          
 
 def run_playwright_script(date: str, time: str, ipv6: str):
     """
@@ -92,7 +140,7 @@ def run_playwright_script(date: str, time: str, ipv6: str):
     except Exception as e:
         logger.error(f"Erro ao executar o script Playwright: {str(e)}")
         return {"error": str(e)}
-
+      
 
 def fetch_data(username):
     """
@@ -224,65 +272,3 @@ def process_excel_file(file_path):
         raise
     
     return output_file_path
-
-
-class ConsultarIpv6(APIView):
-    @swagger_auto_schema(
-        request_body=QueryParamsSerializer,
-        responses={
-            200: openapi.Response(
-                description="Resposta do script Playwright",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'result': openapi.Schema(type=openapi.TYPE_STRING, description='Resultado'),
-                    }
-                ),
-            ),
-            400: openapi.Response(
-                description="Erro na requisição",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'detail': openapi.Schema(type=openapi.TYPE_STRING, description='Detalhes do erro'),
-                    }
-                ),
-            ),
-        },
-    )
-    def post(self, request):
-        serializer = QueryParamsSerializer(data=request.data)
-        if serializer.is_valid():
-            date = serializer.validated_data.get("date")
-            time = serializer.validated_data.get("time")
-            ipv6 = serializer.validated_data.get("ipv6")
-
-            logger.info(f"Date: {date}")
-            logger.info(f"Time: {time}")
-            logger.info(f"IPv6: {ipv6}")
-
-            retorno = run_playwright_script(date, time, ipv6)
-            if "error" in retorno:
-                return Response({"detail": retorno["error"]}, status=status.HTTP_400_BAD_REQUEST)
-            return Response(retorno)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ProcessarAPIView(APIView):
-    def get(self, request):
-        try:
-            file_path = "resultado.xlsx"
-            output_file_path = process_excel_file(file_path)
-            
-            if os.path.exists(output_file_path):  # Verificar se o arquivo foi gerado
-                response = FileResponse(open(output_file_path, 'rb'), as_attachment=True, filename="resultado_processed.xlsx")
-                return response
-            else:
-                raise APIException("Erro ao processar o arquivo ou nenhum dado foi encontrado.")
-        except FileNotFoundError:
-            logger.error(f"Arquivo não encontrado: {output_file_path}")
-            raise APIException("Arquivo processado não foi encontrado.")
-        except Exception as e:
-            logger.error(f"Erro ao processar o arquivo: {str(e)}")
-            raise APIException("Erro interno ao processar o arquivo.")
