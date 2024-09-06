@@ -25,18 +25,16 @@ SECRET_KEY = 'django-insecure-6mq44rj12&ipxzq190nh+!c12fb+_rh(roa+3v5okkc*@cso^^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['playwrightlogs.online.dev.br']
-
 CSRF_TRUSTED_ORIGINS = [
-    'playwrightlogs.online.dev.br'
+    'https://playwrightlogs.online.dev.br'
 ]
 
 ALLOWED_HOSTS = [
-    'playwrightlogs.online.dev.br',
+    'playwrightlogs.online.dev.br'
 ]
 
 CORS_ORIGIN_WHITELIST = [
-    'playwrightlogs.online.dev.br',
+    'https://playwrightlogs.online.dev.br',
 ]
 # Application definition
 
