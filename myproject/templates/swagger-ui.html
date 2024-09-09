@@ -23,19 +23,24 @@
         const csrftoken = getCookie('csrftoken');
         if (csrftoken) {
             const ui = window.ui;
-
-            // Intercepta as requisições para adicionar o cabeçalho CSRF
-            ui.plugins.RequestSnippetsGenerator = function() {
-                return {
-                    wrapComponents: {
-                        requestSnippets: () => (Original, system) => (props) => {
-                            const req = props.request;
-                            req.headers['X-CSRFToken'] = csrftoken;
-                            return <Original {...props} />;
+            
+            if (ui && ui.plugins && ui.plugins.RequestSnippetsGenerator) {
+                ui.plugins.RequestSnippetsGenerator = function() {
+                    return {
+                        wrapComponents: {
+                            requestSnippets: () => (Original, system) => (props) => {
+                                const req = props.request;
+                                req.headers['X-CSRFToken'] = csrftoken;
+                                return <Original {...props} />;
+                            }
                         }
-                    }
+                    };
                 };
-            };
+            } else {
+                console.error('Swagger UI plugins are not available.');
+            }
+        } else {
+            console.error('CSRF token not found.');
         }
     };
 </script>
