@@ -86,10 +86,28 @@ SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
         'basic': {
             'type': 'basic'
-        }
+        },
+        'csrf': {
+            'type': 'apiKey',
+            'in': 'header',
+            'name': 'X-CSRFToken'
+        },
     },
-    'DEFAULT_API_URL': 'https://playwrightlogs.online.dev.br/api/',
+    'DEFAULT_API_URL': 'http://localhost:8000/api/',
     'SUPPORTED_SUBMIT_METHODS': ['get', 'post', 'put', 'delete', 'patch'],
+    'REFETCH_SCHEMA_WITH_AUTH': True,
+    'withCredentials': True,
+    'requestInterceptor': '''
+        (request) => {
+            const csrftoken = document.cookie.split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];  // Obtém o CSRF Token do cookie
+            if (csrftoken) {
+                request.headers['X-CSRFToken'] = csrftoken;  // Adiciona o CSRF Token no header
+            }
+            return request;
+        }
+    ''',
 }
 
 MIDDLEWARE = [
@@ -101,6 +119,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+DEFAULT_AUTHENTICATION_CLASSES = [
+    'rest_framework.authentication.BasicAuthentication',
 ]
 
 ROOT_URLCONF = 'myproject.urls'

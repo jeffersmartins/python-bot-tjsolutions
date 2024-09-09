@@ -4,9 +4,9 @@ from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from playwright.sync_api import sync_playwright
+
 from django.http import FileResponse
 from django.views.decorators.csrf import csrf_protect
-from django.views.decorators.csrf import ensure_csrf_cookie 
 from .serializers import HelloWorldSerializer, ConsultarIpv6Serializer
 
 import os
@@ -80,7 +80,7 @@ def run_playwright_script(date: str, time: str, ipv6: str):
     Executa o script do Playwright para realizar a automação de consulta.
     """
     try:
-        with sync_playwright() as playwright:           
+        with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             context = browser.new_context()
             page = context.new_page()
@@ -93,18 +93,19 @@ def run_playwright_script(date: str, time: str, ipv6: str):
             page.get_by_placeholder("Sua senha").fill(os.getenv("LOGIN_PASSWORD"))
             page.wait_for_timeout(500)
 
-            # Submeter o formulário (assumindo que é um botão de submit)
+            # Submeter o formulário
             page.get_by_role("button", name="Log In").click()
             page.wait_for_timeout(1000)
 
-            # Esperar que o login seja concluído verificando a presença de um elemento na página do painel
+            # Esperar que o login seja concluído
+            page.goto("https://tjsolutions.com.br/painel/dashboard")
             page.wait_for_url("https://tjsolutions.com.br/painel/dashboard")
             page.wait_for_timeout(1000)
 
             # Navegar para a página desejada após o login
             page.get_by_role("link", name=" NC Syslog ").click()
             page.wait_for_timeout(1000)
-            page.get_by_role("link", name="Consultar Autenticação").click() 
+            page.get_by_role("link", name="Consultar Autenticação").click()
             page.wait_for_timeout(1000)
             page.get_by_label("Data: *").fill(date)
             page.wait_for_timeout(1000)
@@ -123,13 +124,11 @@ def run_playwright_script(date: str, time: str, ipv6: str):
                 page.wait_for_load_state("networkidle", timeout=2000000)
             response = response_info.value
             logger.info(f"Response: {response.text()}")
-            page.wait_for_timeout(5000)
 
             # Espera o botão " Excel" aparecer após a consulta
             with page.expect_download() as download3_info:
                 page.get_by_role("button", name=" Excel").click()
             download = download3_info.value
-            page.wait_for_timeout(5000)
 
             # Salvar o arquivo Excel na raiz da pasta do script
             current_directory = os.getcwd()
@@ -137,14 +136,16 @@ def run_playwright_script(date: str, time: str, ipv6: str):
             download.save_as(saved_path)
 
             # ---------------------
-            context.close()
-            browser.close()
+            context.close()  # Fecha o contexto do navegador
+            browser.close()  # Fecha o navegador
+
             logger.info("Arquivo Excel salvo com sucesso!")
             return {"message": "Consulta executada com sucesso!", "file": saved_path}
+    
     except Exception as e:
         logger.error(f"Erro ao executar o script Playwright: {str(e)}")
-        return {"error": str(e)}
-      
+        return {"Erro ao executar o script Playwright"}
+
 
 def fetch_data(username):
     """
