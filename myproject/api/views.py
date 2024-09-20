@@ -42,12 +42,14 @@ def consultar_ipv6(request):
         date = serializer.validated_data.get("date")
         time = serializer.validated_data.get("time")
         ipv6 = serializer.validated_data.get("ipv6")
+        licenca = serializer.validated_data.get("licenca")
 
         logger.info(f"Date: {date}")
         logger.info(f"Time: {time}")
         logger.info(f"IPv6: {ipv6}")
+        logger.info(f"Licença: {licenca}")
 
-        retorno = run_playwright_script(date, time, ipv6)
+        retorno = run_playwright_script(date, time, ipv6, licenca)
         if "error" in retorno:
             return Response({"detail": retorno["error"]}, status=400)
         return Response(retorno)
@@ -75,7 +77,7 @@ def relatorio_ipv6(request):
         raise APIException("Erro ao processar arquivo")
           
 
-def run_playwright_script(date: str, time: str, ipv6: str):
+def run_playwright_script(date: str, time: str, ipv6: str, licenca: str):
     """
     Executa o script do Playwright para realizar a automação de consulta.
     """
@@ -117,13 +119,20 @@ def run_playwright_script(date: str, time: str, ipv6: str):
             page.wait_for_timeout(1000)
             page.get_by_label("IPv6:").fill(ipv6)
             page.wait_for_timeout(1000)
+            page.get_by_role("textbox", name=f"Radius {licenca}").click()
+            page.wait_for_timeout(1000)
+            page.get_by_role("option", name=f"Radius {licenca}").click()
+            page.wait_for_timeout(1000)
 
             # Clica no botão "Localizar Registro" e espera a resposta
-            with page.expect_response("https://tjsolutions.com.br/painel/ncsyslog_v6/consultar", timeout=2000000) as response_info:
-                page.get_by_role("button", name="Localizar Registro").click()
-                page.wait_for_load_state("networkidle", timeout=2000000)
-            response = response_info.value
-            logger.info(f"Response: {response.text()}")
+            page.get_by_role("button", name="Localizar Registro").click(timeout=120000)
+            
+            # Definindo o timeout de 2 minutos (120000 milissegundos) para esperar o carregamento completo da resposta
+            response = page.expect_response("https://tjsolutions.com.br/painel/ncsyslog_v6/consultar", timeout=120000)
+            
+            page.wait_for_load_state("networkidle", timeout=2000000)
+
+            logger.info(f"Response: {response}")
 
             # Espera o botão " Excel" aparecer após a consulta
             with page.expect_download() as download3_info:
